@@ -801,7 +801,8 @@ export class Station extends TypedEmitter<StationEvents> {
       type === DeviceType.STATION ||
       type === DeviceType.HB3 ||
       type === DeviceType.MINIBASE_CHIME ||
-      type === DeviceType.HOMEBASE_MINI
+      type === DeviceType.HOMEBASE_MINI ||
+      type === DeviceType.NVR_S4_MAX
     );
   }
 
@@ -821,12 +822,20 @@ export class Station extends TypedEmitter<StationEvents> {
     return type === DeviceType.HOMEBASE_MINI;
   }
 
+  public static isStationNVR(type: number): boolean {
+    return type === DeviceType.NVR_S4_MAX;
+  }
+
   public static isStationHomeBase3BySn(sn: string): boolean {
     return sn.startsWith("T8030");
   }
 
   public static isStationHomeBaseMiniBySn(sn: string): boolean {
     return sn.startsWith("T8025");
+  }
+
+  public static isStationNVRBySn(sn: string): boolean {
+    return sn.startsWith("T8N00");
   }
 
   public isStationHomeBase2OrOlder(): boolean {
@@ -839,6 +848,10 @@ export class Station extends TypedEmitter<StationEvents> {
 
   public isStationHomeBaseMini(): boolean {
     return Station.isStationHomeBaseMini(this.rawStation.device_type);
+  }
+
+  public isStationNVR(): boolean {
+    return Station.isStationNVR(this.rawStation.device_type);
   }
 
   /**

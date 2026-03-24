@@ -1988,7 +1988,8 @@ export class Device extends TypedEmitter<DeviceEvents> {
       type === DeviceType.STATION ||
       type === DeviceType.HB3 ||
       type === DeviceType.HOMEBASE_MINI ||
-      type === DeviceType.MINIBASE_CHIME
+      type === DeviceType.MINIBASE_CHIME ||
+      type === DeviceType.NVR_S4_MAX
     );
   }
 
@@ -2621,6 +2622,11 @@ export class Device extends TypedEmitter<DeviceEvents> {
     return false;
   }
 
+  static isNVR(type: number): boolean {
+    //T8N00
+    return DeviceType.NVR_S4_MAX === type;
+  }
+
   public isCamera(): boolean {
     return Device.isCamera(this.rawDevice.device_type);
   }
@@ -2949,6 +2955,10 @@ export class Device extends TypedEmitter<DeviceEvents> {
 
   public isSmartTrackLink(): boolean {
     return Device.isSmartTrackLink(this.rawDevice.device_type);
+  }
+
+  public isNVR(): boolean {
+    return Device.isNVR(this.rawDevice.device_type);
   }
 
   public hasBattery(): boolean {
