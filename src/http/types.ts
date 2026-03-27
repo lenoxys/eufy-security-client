@@ -7218,6 +7218,7 @@ export const DeviceProperties: Properties = {
     [PropertyName.DeviceRecordingEndClipMotionStops]: DeviceRecordingEndClipMotionStopsProperty,
     [PropertyName.DeviceDualCamWatchViewMode]: DeviceDualCamWatchViewModeS340Property,
     [PropertyName.DeviceRTSPStream]: DeviceRTSPStreamProperty,
+    [PropertyName.DeviceRTSPStreamUrl]: DeviceRTSPStreamUrlProperty,
     [PropertyName.DeviceDetectionStatisticsWorkingDays]: DeviceDetectionStatisticsWorkingDaysProperty,
     [PropertyName.DeviceDetectionStatisticsDetectedEvents]: DeviceDetectionStatisticsDetectedEventsProperty,
     [PropertyName.DeviceDetectionStatisticsRecordedEvents]: DeviceDetectionStatisticsRecordedEventsProperty,
