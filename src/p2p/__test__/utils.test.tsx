@@ -35,8 +35,11 @@ import {
     MAGIC_WORD,
     generateBasicLockAESKey,
     eufyKDF,
+    decryptP2PKeyECDH,
+    getLockV12Key,
 } from "../utils";
 import { VideoCodec } from "../types";
+import { createECDH } from "crypto";
 
 jest.mock("../../logging", () => ({
     rootP2PLogger: { error: jest.fn(), debug: jest.fn(), info: jest.fn() },
@@ -140,7 +143,7 @@ describe("p2p/utils", () => {
             const result = paddingP2PData(data);
             expect(result.length).toBe(16);
             expect(result[0]).toBe(1);
-            expect(result[3]).toBe(0); // padded with zeros
+            expect(result[3]).toBe(0);
         });
 
         it("should pad data to next multiple of blocksize", () => {
@@ -214,9 +217,9 @@ describe("p2p/utils", () => {
 
     describe("isIFrame", () => {
         it("should detect I-frame by byte at index 3", () => {
-            expect(isIFrame(Buffer.from([0x00, 0x00, 0x00, 0x67, 0x00]))).toBe(true); // 103
-            expect(isIFrame(Buffer.from([0x00, 0x00, 0x00, 0x65, 0x00]))).toBe(true); // 101
-            expect(isIFrame(Buffer.from([0x00, 0x00, 0x00, 0x40, 0x00]))).toBe(true); // 64
+            expect(isIFrame(Buffer.from([0x00, 0x00, 0x00, 0x67, 0x00]))).toBe(true);
+            expect(isIFrame(Buffer.from([0x00, 0x00, 0x00, 0x65, 0x00]))).toBe(true);
+            expect(isIFrame(Buffer.from([0x00, 0x00, 0x00, 0x40, 0x00]))).toBe(true);
         });
 
         it("should detect I-frame by byte at index 4", () => {
@@ -235,12 +238,12 @@ describe("p2p/utils", () => {
 
     describe("getVideoCodec", () => {
         it("should return H265 for H.265 NAL unit types at index 3", () => {
-            expect(getVideoCodec(Buffer.from([0x00, 0x00, 0x00, 0x26, 0x00]))).toBe(VideoCodec.H265); // 38
-            expect(getVideoCodec(Buffer.from([0x00, 0x00, 0x00, 0x40, 0x00]))).toBe(VideoCodec.H265); // 64
+            expect(getVideoCodec(Buffer.from([0x00, 0x00, 0x00, 0x26, 0x00]))).toBe(VideoCodec.H265);
+            expect(getVideoCodec(Buffer.from([0x00, 0x00, 0x00, 0x40, 0x00]))).toBe(VideoCodec.H265);
         });
 
         it("should return H265 for H.265 NAL unit types at index 4", () => {
-            expect(getVideoCodec(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x42]))).toBe(VideoCodec.H265); // 66
+            expect(getVideoCodec(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x42]))).toBe(VideoCodec.H265);
         });
 
         it("should return H264 for SPS NAL type 103 at index 3", () => {
@@ -291,9 +294,9 @@ describe("p2p/utils", () => {
         it("should return a 10-byte buffer with default channel 255", () => {
             const result = buildVoidCommandPayload();
             expect(result.length).toBe(10);
-            expect(result[0]).toBe(0x00); // header
-            expect(result[4]).toBe(0x01); // magic
-            expect(result[6]).toBe(0xff); // channel 255
+            expect(result[0]).toBe(0x00);
+            expect(result[4]).toBe(0x01);
+            expect(result[6]).toBe(0xff);
         });
 
         it("should use provided channel", () => {
@@ -356,25 +359,25 @@ describe("p2p/utils", () => {
 
     describe("isSolarCharging", () => {
         it("should return true when bit 2 is set", () => {
-            expect(isSolarCharging(4)).toBe(true);   // 0b100
-            expect(isSolarCharging(5)).toBe(true);   // 0b101
+            expect(isSolarCharging(4)).toBe(true);
+            expect(isSolarCharging(5)).toBe(true);
         });
 
         it("should return false when bit 2 is not set", () => {
             expect(isSolarCharging(0)).toBe(false);
-            expect(isSolarCharging(3)).toBe(false);  // 0b011
+            expect(isSolarCharging(3)).toBe(false);
         });
     });
 
     describe("isPlugSolarCharging", () => {
         it("should return true when bit 3 is set", () => {
-            expect(isPlugSolarCharging(8)).toBe(true);   // 0b1000
-            expect(isPlugSolarCharging(9)).toBe(true);   // 0b1001
+            expect(isPlugSolarCharging(8)).toBe(true);
+            expect(isPlugSolarCharging(9)).toBe(true);
         });
 
         it("should return false when bit 3 is not set", () => {
             expect(isPlugSolarCharging(0)).toBe(false);
-            expect(isPlugSolarCharging(7)).toBe(false);  // 0b0111
+            expect(isPlugSolarCharging(7)).toBe(false);
         });
     });
 
@@ -393,7 +396,7 @@ describe("p2p/utils", () => {
 
         it("should return false for no charging", () => {
             expect(isCharging(0)).toBe(false);
-            expect(isCharging(2)).toBe(false); // only bit 1 set
+            expect(isCharging(2)).toBe(false);
         });
     });
 
@@ -415,7 +418,7 @@ describe("p2p/utils", () => {
         });
 
         it("should not pad if already 16 byte aligned", () => {
-            const result = encodeLockPayload("1234567890123456"); // 16 chars
+            const result = encodeLockPayload("1234567890123456");
             expect(result.length).toBe(16);
         });
 
@@ -437,13 +440,13 @@ describe("p2p/utils", () => {
         });
 
         it("should not pad strings >= 16 bytes", () => {
-            const input = "ABCDEFGHIJKLMNOP"; // 16 chars
+            const input = "ABCDEFGHIJKLMNOP";
             const result = getLockVectorBytes(input);
             expect(Buffer.from(result, "hex").length).toBe(16);
         });
 
         it("should return longer hex for strings > 16 bytes", () => {
-            const input = "ABCDEFGHIJKLMNOPQ"; // 17 chars
+            const input = "ABCDEFGHIJKLMNOPQ";
             const result = getLockVectorBytes(input);
             expect(Buffer.from(result, "hex").length).toBe(17);
         });
@@ -504,7 +507,7 @@ describe("p2p/utils", () => {
         it("should round-trip encrypt and decrypt", () => {
             const key = "00112233445566778899aabbccddeeff";
             const iv = "ffeeddccbbaa99887766554433221100";
-            const data = Buffer.from("0123456789abcdef", "hex"); // 8 bytes
+            const data = Buffer.from("0123456789abcdef", "hex");
             const encrypted = encryptLockAESData(key, iv, data);
             const decrypted = decryptLockAESData(key, iv, encrypted);
             expect(decrypted).toEqual(data);
@@ -635,6 +638,59 @@ describe("p2p/utils", () => {
             const result = readNullTerminatedBuffer(input);
             input[0] = 0x00;
             expect(result[0]).toBe(0x41);
+        });
+    });
+
+    describe("decryptP2PKeyECDH", () => {
+        const device = createECDH("prime256v1");
+        device.generateKeys();
+        const eccPrivateKey = device.getPrivateKey("hex");
+
+        test("Test decryptP2PKeyECDH with compressed pubkey only", () => {
+            const peer = createECDH("prime256v1");
+            peer.generateKeys();
+
+            const result = decryptP2PKeyECDH(Buffer.from(peer.getPublicKey("hex", "compressed"), "hex"), eccPrivateKey);
+            expect(result).toEqual(device.computeSecret(peer.getPublicKey()).subarray(0, 16));
+        });
+
+        test("Test decryptP2PKeyECDH with uncompressed pubkey only", () => {
+            const peer = createECDH("prime256v1");
+            peer.generateKeys();
+
+            const result = decryptP2PKeyECDH(peer.getPublicKey(), eccPrivateKey);
+            expect(result).toEqual(device.computeSecret(peer.getPublicKey()).subarray(0, 16));
+        });
+
+        test("Test decryptP2PKeyECDH with ECIES envelope", () => {
+            const sessionKey = "0123456789abcdef0123456789abcdef";
+            const envelope = Buffer.from(getLockV12Key(sessionKey, device.getPublicKey("hex").substring(2)), "hex");
+
+            expect(decryptP2PKeyECDH(envelope, eccPrivateKey)).toEqual(Buffer.from(sessionKey, "hex"));
+        });
+
+        test("Test decryptP2PKeyECDH with 48-byte ECIES payload", () => {
+            const plaintext = Buffer.alloc(48, 0xab).toString("hex");
+            const envelope = Buffer.from(getLockV12Key(plaintext, device.getPublicKey("hex").substring(2)), "hex");
+
+            expect(decryptP2PKeyECDH(envelope, eccPrivateKey)).toEqual(Buffer.from(plaintext, "hex").subarray(0, 16));
+        });
+
+        test("Test decryptP2PKeyECDH result is always 16 bytes", () => {
+            const peer = createECDH("prime256v1");
+            peer.generateKeys();
+
+            const result = decryptP2PKeyECDH(Buffer.from(peer.getPublicKey("hex", "compressed"), "hex"), eccPrivateKey);
+            expect(Buffer.isBuffer(result)).toBe(true);
+            expect(result.length).toBe(16);
+        });
+
+        test("Test decryptP2PKeyECDH deterministic output", () => {
+            const peer = createECDH("prime256v1");
+            peer.generateKeys();
+            const pub = Buffer.from(peer.getPublicKey("hex", "compressed"), "hex");
+
+            expect(decryptP2PKeyECDH(pub, eccPrivateKey)).toEqual(decryptP2PKeyECDH(pub, eccPrivateKey));
         });
     });
 });
